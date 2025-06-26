@@ -1,0 +1,11 @@
+customer_id,username,full_name,age,gender,account_type,join_date
+1,james_smith,James Smith,25,M,Premium,2024-01-15
+2,sarah_jones,Sarah Jones,32,F,Standard,2024-02-20
+3,michael_brown,Michael Brown,28,M,Business,2024-03-10
+4,emma_davis,Emma Davis,35,F,Premium,2024-01-25
+5,william_wilson,William Wilson,42,M,Standard,2024-04-05
+6,olivia_taylor,Olivia Taylor,29,F,Premium,2024-02-15
+7,alexander_anderson,Alexander Anderson,38,M,Business,2024-03-20
+8,sophia_thomas,Sophia Thomas,26,F,Standard,2024-05-10
+9,benjamin_jackson,Benjamin Jackson,31,M,Premium,2024-01-30
+10,charlotte_white,Charlotte White,33,F,Business,2024-04-12

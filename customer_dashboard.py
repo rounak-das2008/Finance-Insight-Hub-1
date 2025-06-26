@@ -1,0 +1,386 @@
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from data_loader import load_customer_data, get_customer_profile
+from analytics import calculate_spending_summary, create_spending_charts, calculate_rfm_metrics, predict_cash_flow, generate_insights
+from recommendations import generate_product_recommendations, create_recommendation_summary, get_cross_selling_opportunities
+from clustering import get_customer_cluster
+import io
+
+def show_customer_dashboard(customer_name):
+    """
+    Display customer-specific dashboard
+    """
+    st.title(f"👤 Customer Dashboard - {customer_name.replace('_', ' ').title()}")
+    
+    # Load customer data
+    customer_data = load_customer_data(customer_name)
+    
+    if customer_data is None:
+        st.error(f"No transaction data found for customer: {customer_name}")
+        st.info("Please ensure your transaction data file is available in the data folder.")
+        return
+    
+    # Get customer profile
+    profile = get_customer_profile(customer_name)
+    
+    # Calculate analytics
+    spending_summary = calculate_spending_summary(customer_data)
+    rfm_metrics = calculate_rfm_metrics(customer_data)
+    cash_flow_prediction = predict_cash_flow(customer_data)
+    insights = generate_insights(customer_data, rfm_metrics, cash_flow_prediction)
+    
+    # Create tabs for different sections
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📊 Overview", 
+        "💳 Transaction Analysis", 
+        "🔮 Cash Flow Forecast", 
+        "🎯 Recommendations", 
+        "📁 Export Data"
+    ])
+    
+    with tab1:
+        show_customer_overview(profile, spending_summary, rfm_metrics, insights)
+    
+    with tab2:
+        show_transaction_analysis(customer_data, spending_summary)
+    
+    with tab3:
+        show_cash_flow_forecast(cash_flow_prediction, customer_data)
+    
+    with tab4:
+        show_customer_recommendations(customer_name, customer_data)
+    
+    with tab5:
+        show_export_options(customer_data, spending_summary)
+
+def show_customer_overview(profile, spending_summary, rfm_metrics, insights):
+    """
+    Show customer overview section
+    """
+    st.header("📊 Account Overview")
+    
+    if not profile or not spending_summary or not rfm_metrics:
+        st.error("Unable to load customer profile data.")
+        return
+    
+    # Key metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric(
+            "Current Balance",
+            f"${profile['current_balance']:,.2f}"
+        )
+    
+    with col2:
+        st.metric(
+            "Total Spent",
+            f"${spending_summary['total_spent']:,.2f}"
+        )
+    
+    with col3:
+        st.metric(
+            "Total Transactions",
+            f"{spending_summary['transaction_count']:,}"
+        )
+    
+    with col4:
+        st.metric(
+            "Avg Transaction",
+            f"${spending_summary['avg_transaction']:,.2f}"
+        )
+    
+    # RFM Metrics
+    st.subheader("📈 Customer Activity Metrics")
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            "Days Since Last Transaction",
+            f"{rfm_metrics['recency']} days"
+        )
+    
+    with col2:
+        st.metric(
+            "Transaction Frequency",
+            f"{rfm_metrics['frequency']} transactions"
+        )
+    
+    with col3:
+        st.metric(
+            "Total Monetary Value",
+            f"${rfm_metrics['monetary']:,.2f}"
+        )
+    
+    # Account period
+    st.info(f"📅 Data Period: {profile['date_range']['start'].strftime('%Y-%m-%d')} to {profile['date_range']['end'].strftime('%Y-%m-%d')}")
+    
+    # Personalized insights
+    st.subheader("💡 Personalized Insights")
+    
+    for insight in insights:
+        st.write(f"• {insight}")
+
+def show_transaction_analysis(customer_data, spending_summary):
+    """
+    Show detailed transaction analysis
+    """
+    st.header("💳 Transaction Analysis")
+    
+    if customer_data is None or spending_summary is None:
+        st.error("Unable to load transaction data.")
+        return
+    
+    # Create visualizations
+    charts = create_spending_charts(customer_data)
+    
+    if charts:
+        # Category breakdown
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if 'category_pie' in charts:
+                st.plotly_chart(charts['category_pie'], use_container_width=True)
+        
+        with col2:
+            if 'top_categories' in charts:
+                st.plotly_chart(charts['top_categories'], use_container_width=True)
+        
+        # Time series analysis
+        if 'monthly_trend' in charts:
+            st.plotly_chart(charts['monthly_trend'], use_container_width=True)
+        
+        if 'balance_trend' in charts:
+            st.plotly_chart(charts['balance_trend'], use_container_width=True)
+        
+        # Spending heatmap
+        if 'spending_heatmap' in charts:
+            st.plotly_chart(charts['spending_heatmap'], use_container_width=True)
+    
+    # Top spending categories table
+    st.subheader("🏆 Top Spending Categories")
+    
+    top_categories_df = spending_summary['category_spending'].head(10).reset_index()
+    top_categories_df.columns = ['Category', 'Amount Spent']
+    top_categories_df['Percentage'] = (top_categories_df['Amount Spent'] / spending_summary['total_spent'] * 100).round(2)
+    top_categories_df['Amount Spent'] = top_categories_df['Amount Spent'].apply(lambda x: f"${x:,.2f}")
+    top_categories_df['Percentage'] = top_categories_df['Percentage'].apply(lambda x: f"{x}%")
+    
+    st.dataframe(top_categories_df, use_container_width=True)
+    
+    # Recent transactions
+    st.subheader("📋 Recent Transactions")
+    
+    recent_transactions = customer_data.sort_values('date', ascending=False).head(10)
+    display_transactions = recent_transactions[['date', 'category', 'debit', 'credit', 'balance']].copy()
+    display_transactions['date'] = display_transactions['date'].dt.strftime('%Y-%m-%d %H:%M')
+    display_transactions['debit'] = display_transactions['debit'].apply(lambda x: f"${x:,.2f}" if x > 0 else "-")
+    display_transactions['credit'] = display_transactions['credit'].apply(lambda x: f"${x:,.2f}" if x > 0 else "-")
+    display_transactions['balance'] = display_transactions['balance'].apply(lambda x: f"${x:,.2f}")
+    
+    st.dataframe(display_transactions, use_container_width=True)
+
+def show_cash_flow_forecast(cash_flow_prediction, customer_data):
+    """
+    Show cash flow forecast section
+    """
+    st.header("🔮 Cash Flow Forecast")
+    
+    if cash_flow_prediction is None:
+        st.error("Unable to generate cash flow prediction.")
+        return
+    
+    # Key forecast metrics
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            "Current Balance",
+            f"${cash_flow_prediction['current_balance']:,.2f}"
+        )
+    
+    with col2:
+        color = "normal" if cash_flow_prediction['net_daily_flow'] >= 0 else "inverse"
+        st.metric(
+            "Daily Net Flow",
+            f"${cash_flow_prediction['net_daily_flow']:,.2f}",
+            delta=None,
+            delta_color=color
+        )
+    
+    with col3:
+        predicted_balance = cash_flow_prediction['predicted_balance_30d']
+        current_balance = cash_flow_prediction['current_balance']
+        delta = predicted_balance - current_balance
+        
+        st.metric(
+            "Predicted Balance (30 days)",
+            f"${predicted_balance:,.2f}",
+            delta=f"${delta:,.2f}"
+        )
+    
+    # Cash flow chart
+    if 'prediction_df' in cash_flow_prediction:
+        prediction_df = cash_flow_prediction['prediction_df']
+        
+        # Combine historical balance with predictions
+        historical_data = customer_data[['date', 'balance']].copy()
+        historical_data['type'] = 'Historical'
+        
+        future_data = prediction_df[['date', 'predicted_balance']].copy()
+        future_data = future_data.rename(columns={'predicted_balance': 'balance'})
+        future_data['type'] = 'Predicted'
+        
+        combined_data = pd.concat([historical_data, future_data], ignore_index=True)
+        
+        fig = px.line(
+            combined_data,
+            x='date',
+            y='balance',
+            color='type',
+            title="Balance Trend: Historical vs Predicted",
+            labels={'balance': 'Account Balance', 'date': 'Date'}
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Low balance alerts
+    if not cash_flow_prediction['low_balance_alerts'].empty:
+        st.warning("⚠️ **Low Balance Alerts**")
+        
+        low_balance_df = cash_flow_prediction['low_balance_alerts'].copy()
+        low_balance_df['date'] = low_balance_df['date'].dt.strftime('%Y-%m-%d')
+        low_balance_df['predicted_balance'] = low_balance_df['predicted_balance'].apply(lambda x: f"${x:.2f}")
+        
+        st.dataframe(low_balance_df, use_container_width=True)
+        
+        st.info("💡 Consider adjusting your spending or adding funds to avoid low balance situations.")
+    else:
+        st.success("✅ No low balance alerts for the next 30 days!")
+    
+    # Spending breakdown
+    st.subheader("💰 Daily Spending Analysis")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.metric(
+            "Average Daily Spending",
+            f"${cash_flow_prediction['avg_daily_spending']:,.2f}"
+        )
+    
+    with col2:
+        st.metric(
+            "Average Daily Income",
+            f"${cash_flow_prediction['avg_daily_income']:,.2f}"
+        )
+
+def show_customer_recommendations(customer_name, customer_data):
+    """
+    Show product recommendations section
+    """
+    st.header("🎯 Personalized Recommendations")
+    
+    # Generate recommendations
+    recommendations = generate_product_recommendations(customer_name, customer_data)
+    
+    if not recommendations:
+        st.info("No specific product recommendations available at this time. Continue using our services to receive personalized suggestions!")
+        return
+    
+    # Display recommendations
+    for i, rec in enumerate(recommendations, 1):
+        with st.expander(f"{i}. {rec['product']['product_name']} - {rec['category']}", expanded=i==1):
+            col1, col2 = st.columns([3, 1])
+            
+            with col1:
+                st.write(f"**Why this fits you:** {rec['reason']}")
+                st.write(f"**Product Details:** {rec['product']['description']}")
+                st.write(f"**Category:** {rec['product']['category']}")
+            
+            with col2:
+                relevance_pct = int(rec['relevance_score'] * 100)
+                st.metric("Relevance", f"{relevance_pct}%")
+                
+                if st.button(f"Learn More", key=f"learn_more_{i}"):
+                    st.info("Contact your relationship manager for more details about this product.")
+    
+    # Recommendation summary
+    st.subheader("📋 Recommendation Summary")
+    summary = create_recommendation_summary(recommendations)
+    st.markdown(summary)
+
+def show_export_options(customer_data, spending_summary):
+    """
+    Show data export options
+    """
+    st.header("📁 Export Your Data")
+    
+    if customer_data is None:
+        st.error("No data available for export.")
+        return
+    
+    st.write("Download your transaction data and analysis results:")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📊 Transaction Data")
+        
+        # Prepare transaction data for export
+        export_data = customer_data.copy()
+        export_data['date'] = export_data['date'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        
+        csv_buffer = io.StringIO()
+        export_data.to_csv(csv_buffer, index=False)
+        csv_data = csv_buffer.getvalue()
+        
+        st.download_button(
+            label="Download Transactions (CSV)",
+            data=csv_data,
+            file_name=f"transactions_{st.session_state.username}.csv",
+            mime="text/csv"
+        )
+    
+    with col2:
+        st.subheader("📈 Spending Analysis")
+        
+        if spending_summary:
+            # Create analysis summary
+            analysis_data = {
+                'Metric': [
+                    'Total Spent',
+                    'Total Income',
+                    'Net Flow',
+                    'Average Transaction',
+                    'Transaction Count',
+                    'Top Category',
+                    'Top Category Amount'
+                ],
+                'Value': [
+                    f"${spending_summary['total_spent']:,.2f}",
+                    f"${spending_summary['total_income']:,.2f}",
+                    f"${spending_summary['net_flow']:,.2f}",
+                    f"${spending_summary['avg_transaction']:,.2f}",
+                    spending_summary['transaction_count'],
+                    spending_summary['top_categories'].index[0] if not spending_summary['top_categories'].empty else 'N/A',
+                    f"${spending_summary['top_categories'].iloc[0]:,.2f}" if not spending_summary['top_categories'].empty else 'N/A'
+                ]
+            }
+            
+            analysis_df = pd.DataFrame(analysis_data)
+            
+            csv_buffer = io.StringIO()
+            analysis_df.to_csv(csv_buffer, index=False)
+            analysis_csv = csv_buffer.getvalue()
+            
+            st.download_button(
+                label="Download Analysis (CSV)",
+                data=analysis_csv,
+                file_name=f"analysis_{st.session_state.username}.csv",
+                mime="text/csv"
+            )
+    
+    st.info("💡 **Privacy Note:** Your personal financial data is kept secure and is only accessible to you when logged in.")
