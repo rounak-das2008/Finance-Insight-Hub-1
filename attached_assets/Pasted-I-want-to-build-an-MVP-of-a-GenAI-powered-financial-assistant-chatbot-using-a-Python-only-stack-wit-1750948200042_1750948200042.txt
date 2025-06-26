@@ -1,0 +1,98 @@
+I want to build an MVP of a GenAI-powered financial assistant chatbot using a Python-only stack, with the following clear goals and constraints:
+
+🧩 Project Overview:
+Build a personalized budgeting and spending insights chatbot for a retail banking use case. The platform should support two types of users:
+
+Customers: who can see their own spending analysis, predictions, and interact with a GenAI chatbot for personalized insights.
+
+Bank Admins: who can see overall customer clusters, product interest trends, and system-level financial behavior overviews (without accessing customer-sensitive detail).
+
+This project is an MVP and should be kept simple and efficient, using mostly local or free resources:
+
+Frontend: Streamlit (Python-only UI for both customer and admin dashboards)
+
+Backend: FastAPI
+
+Database: SQLite (lightweight, embedded)
+
+LLM Chatbot: Free and open-source models using Ollama, Hugging Face Transformers, or local LLMStudio server
+
+Authentication: Simple role-based login (admin vs. customer); either hardcoded or file-based for now
+
+✅ Core Features to Implement:
+🔹 Customer View:
+View spending breakdown (categories like groceries, dining, travel, subscriptions)
+
+Receive personalized summaries and tips from the GenAI chatbot
+
+Forecast future cash balance and potential shortfalls using basic time series methods
+
+View recommended financial products based on their patterns (cashback cards, savings plans)
+
+🔹 Admin View:
+Visual dashboard showing aggregated customer stats
+
+Overview of customer clusters and spending behavior segments also doing RFM on customer transactions
+
+Product interest trends and opportunities (based on group analysis)
+
+Ability to simulate new product suggestions via chatbot or dashboard
+
+⚙️ Functional Breakdown & Implementation Flow:
+1. Project Setup
+Initialize Python project with Streamlit + FastAPI
+
+Use SQLite or simple databases (like mysql or postgres, more preference towards mysql!) for data storage (tables: users, transactions, products, clusters, chat logs)
+
+Role-based login logic (admin vs customer) with basic session state
+
+2. Data Handling
+Create synthetic transaction data per customer
+
+Load transactions into SQLite and fetch for analysis
+
+3. Customer Clustering
+Use basic scikit-learn clustering (KMeans or DBSCAN)
+
+Features: category-wise spend, transaction frequency, volatility
+
+Save cluster labels for customers
+
+4. Forecasting (Cash Flow)
+Use Darts or Prophet to forecast user’s account balance for next 30 days
+
+Plot in dashboard and add alert flag if likely to run out of money
+
+5. GenAI Chatbot Integration
+Use Ollama or Hugging Face Transformers (like Mistral, LLaMA 3, TinyLlama)
+
+Load a local model (e.g. ollama run mistral) and call it from backend
+
+Create prompt template: inject user cluster, spending stats, and questions
+
+Ensure chatbot respects role and only answers relevant data
+
+6. Product Recommendation Logic
+Based on user profile and forecast, recommend products from a fixed list
+
+Use semantic similarity (optional: Sentence Transformers + cosine similarity)
+
+7. Streamlit Dashboard Interfaces
+Customer Panel: Login, view personal analytics, interact with chatbot
+
+Admin Panel: Login, view cluster summaries, product insights, chatbot for product planning
+
+8. Security & User Separation
+Role-based views in Streamlit (using session state)
+
+SQLite queries filtered by user ID to isolate data access
+
+💡 Notes & Constraints
+No paid APIs (avoid OpenAI). Use local free models only.
+
+All components should run locally or offline (ideal for demos and hackathons).
+
+Minimize external dependencies. Keep things readable and simple.
+
+Please generate the full project step-by-step using this plan. Include code suggestions, file structure, authentication handling, basic ML logic, and chatbot integration. Help me build this MVP efficiently.
+
