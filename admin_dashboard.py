@@ -78,7 +78,7 @@ def show_admin_overview(all_customer_data):
         balance = data['balance'].iloc[-1] if not data.empty else 0
         
         # Consider customer active if they had transactions in last 30 days
-        latest_transaction = data['date'].max()
+        latest_transaction = data['date'].max().replace(tzinfo=None)
         days_since_last = (pd.Timestamp.now() - latest_transaction).days
         is_active = days_since_last <= 30
         
@@ -477,7 +477,7 @@ def show_performance_metrics(all_customer_data, clustering_results, cluster_anal
             y='Total Volume',
             title="Top Spending Categories (Bank-wide)"
         )
-        fig_categories.update_xaxis(tickangle=45)
+        fig_categories.update_xaxes(tickangle=45)
         st.plotly_chart(fig_categories, use_container_width=True)
     
     # Monthly trends
@@ -495,7 +495,7 @@ def show_performance_metrics(all_customer_data, clustering_results, cluster_anal
             y='Total Volume',
             title="Monthly Transaction Volume Trend"
         )
-        fig_monthly.update_xaxis(tickangle=45)
+        fig_monthly.update_xaxes(tickangle=45)
         st.plotly_chart(fig_monthly, use_container_width=True)
 
 def show_admin_export_options(all_customer_data, clustering_results, cluster_analysis):
