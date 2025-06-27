@@ -32,7 +32,7 @@ def main():
 
 def show_login_page():
     st.markdown("---")
-    st.subheader("🔐 Login")
+    st.markdown("""<h2 style="text-align: center;">🔐 Login</h2>""", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])
     
@@ -54,17 +54,17 @@ def show_login_page():
         
         # Show demo credentials
         st.markdown("---")
-        st.info("""
-        **Demo Credentials:**
+        # st.info("""
+        # **Demo Credentials:**
         
-        **Customer Access:**
-        - Username: james_smith (or any customer name from data folder)
-        - Password: customer123
+        # **Customer Access:**
+        # - Username: james_smith (or any customer name from data folder)
+        # - Password: customer123
         
-        **Admin Access:**
-        - Username: admin
-        - Password: admin123
-        """)
+        # **Admin Access:**
+        # - Username: admin
+        # - Password: admin123
+        # """)
 
 def show_authenticated_app():
     # Sidebar navigation

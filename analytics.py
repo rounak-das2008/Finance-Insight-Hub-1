@@ -5,6 +5,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import calendar
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+import warnings
+warnings.filterwarnings("ignore")
 
 def calculate_spending_summary(df):
     """
@@ -83,19 +86,19 @@ def create_spending_charts(df):
     charts['balance_trend'] = fig_balance
     
     # Daily spending heatmap
-    df['day'] = df['date'].dt.day
-    df['month_num'] = df['date'].dt.month
-    daily_spending = df.groupby(['month_num', 'day'])['debit'].sum().reset_index()
+    # df['day'] = df['date'].dt.day
+    # df['month_num'] = df['date'].dt.month
+    # daily_spending = df.groupby(['month_num', 'day'])['debit'].sum().reset_index()
     
-    if not daily_spending.empty:
-        pivot_daily = daily_spending.pivot(index='month_num', columns='day', values='debit').fillna(0)
-        fig_heatmap = px.imshow(
-            pivot_daily.values,
-            labels=dict(x="Day of Month", y="Month", color="Spending"),
-            title="Daily Spending Heatmap",
-            aspect="auto"
-        )
-        charts['spending_heatmap'] = fig_heatmap
+    # if not daily_spending.empty:
+    #     pivot_daily = daily_spending.pivot(index='month_num', columns='day', values='debit').fillna(0)
+    #     fig_heatmap = px.imshow(
+    #         pivot_daily.values,
+    #         labels=dict(x="Day of Month", y="Month", color="Spending"),
+    #         title="Daily Spending Heatmap",
+    #         aspect="auto"
+    #     )
+    #     charts['spending_heatmap'] = fig_heatmap
     
     # Top spending categories bar chart
     top_categories = category_spending.head(10)
@@ -141,58 +144,127 @@ def calculate_rfm_metrics(df):
         'last_transaction': df['date'].max()
     }
 
-def predict_cash_flow(df, days_ahead=30):
+# def predict_cash_flow(df, days_ahead=30):
+#     """
+#     Simple cash flow prediction based on historical patterns
+#     """
+#     if df is None or df.empty:
+#         return None
+    
+#     # Calculate average daily spending
+#     df_sorted = df.sort_values('date')
+#     total_days = (df_sorted['date'].max() - df_sorted['date'].min()).days
+#     if total_days <= 0:
+#         return None
+    
+#     avg_daily_spending = df['debit'].sum() / max(1, total_days)
+#     avg_daily_income = df['credit'].sum() / max(1, total_days)
+#     net_daily_flow = avg_daily_income - avg_daily_spending
+    
+#     # Current balance
+#     current_balance = df_sorted['balance'].iloc[-1]
+    
+#     # Predict future balance
+#     future_dates = pd.date_range(
+#         start=df_sorted['date'].max() + timedelta(days=1),
+#         periods=days_ahead,
+#         freq='D'
+#     )
+    
+#     predicted_balances = []
+#     balance = current_balance
+    
+#     for i in range(days_ahead):
+#         balance += net_daily_flow
+#         predicted_balances.append(balance)
+    
+#     prediction_df = pd.DataFrame({
+#         'date': future_dates,
+#         'predicted_balance': predicted_balances
+#     })
+    
+#     # Identify potential low balance days
+#     low_balance_threshold = 100  # Alert if balance goes below $100
+#     low_balance_days = prediction_df[prediction_df['predicted_balance'] < low_balance_threshold]
+    
+#     return {
+#         'prediction_df': prediction_df,
+#         'avg_daily_spending': avg_daily_spending,
+#         'avg_daily_income': avg_daily_income,
+#         'net_daily_flow': net_daily_flow,
+#         'current_balance': current_balance,
+#         'predicted_balance_30d': predicted_balances[-1] if predicted_balances else current_balance,
+#         'low_balance_alerts': low_balance_days
+#     }
+def predict_cash_flow(df, days_ahead=30, threshold=100):
     """
-    Simple cash flow prediction based on historical patterns
+    Predict cash flow using SARIMA for the next month (days_ahead).
+    Returns a dictionary similar to pipeline-ready output.
     """
     if df is None or df.empty:
         return None
-    
-    # Calculate average daily spending
-    df_sorted = df.sort_values('date')
-    total_days = (df_sorted['date'].max() - df_sorted['date'].min()).days
-    if total_days <= 0:
-        return None
-    
-    avg_daily_spending = df['debit'].sum() / max(1, total_days)
-    avg_daily_income = df['credit'].sum() / max(1, total_days)
-    net_daily_flow = avg_daily_income - avg_daily_spending
-    
-    # Current balance
-    current_balance = df_sorted['balance'].iloc[-1]
-    
-    # Predict future balance
-    future_dates = pd.date_range(
-        start=df_sorted['date'].max() + timedelta(days=1),
-        periods=days_ahead,
-        freq='D'
-    )
-    
-    predicted_balances = []
-    balance = current_balance
-    
-    for i in range(days_ahead):
-        balance += net_daily_flow
-        predicted_balances.append(balance)
-    
+ 
+    df['date'] = pd.to_datetime(df['date'])
+    df = df.sort_values('date')
+    df['only_date'] = df['date'].dt.date
+    df_daily = df.groupby('only_date').last().reset_index()
+    df_daily = df_daily[['only_date', 'balance']].rename(columns={'only_date': 'date'})
+ 
+    df_daily['date'] = pd.to_datetime(df_daily['date'])
+    df_daily.set_index('date', inplace=True)
+    df_daily = df_daily.asfreq('D')
+    df_daily['balance'].fillna(method='ffill', inplace=True)
+ 
+    # SARIMA model fit
+    model = SARIMAX(df_daily['balance'],
+                    order=(1, 1, 1),
+                    seasonal_order=(1, 1, 1, 30),
+                    enforce_stationarity=False,
+                    enforce_invertibility=False)
+    results = model.fit(disp=False)
+ 
+    # Forecast
+    forecast = results.get_forecast(steps=days_ahead)
+    pred = forecast.predicted_mean
+    ci = forecast.conf_int()
+ 
     prediction_df = pd.DataFrame({
-        'date': future_dates,
-        'predicted_balance': predicted_balances
+        'date': pred.index,
+        'predicted_balance': pred.values,
+        'lower_bound': ci.iloc[:, 0].values,
+        'upper_bound': ci.iloc[:, 1].values
     })
-    
-    # Identify potential low balance days
-    low_balance_threshold = 100  # Alert if balance goes below $100
-    low_balance_days = prediction_df[prediction_df['predicted_balance'] < low_balance_threshold]
-    
+ 
+    # Alerts for low balance
+    low_balance_alerts = prediction_df[prediction_df['predicted_balance'] < threshold]
+ 
+    # Metrics
+    current_balance = df_daily['balance'].iloc[-1]
+    predicted_balance_30d = pred.values[-1] if not pred.empty else current_balance
+    net_daily_flow = (predicted_balance_30d - current_balance) / days_ahead if days_ahead > 0 else 0
+ 
+    spending = df[df['debit'] > 0].groupby(df['date'].dt.date)['debit'].sum()
+    income = df[df['credit'] > 0].groupby(df['date'].dt.date)['credit'].sum()
+ 
+    avg_daily_spending = spending.mean() if not spending.empty else 0
+    avg_daily_income = income.mean() if not income.empty else 0
+ 
     return {
         'prediction_df': prediction_df,
         'avg_daily_spending': avg_daily_spending,
         'avg_daily_income': avg_daily_income,
         'net_daily_flow': net_daily_flow,
         'current_balance': current_balance,
-        'predicted_balance_30d': predicted_balances[-1] if predicted_balances else current_balance,
-        'low_balance_alerts': low_balance_days
+        'predicted_balance_30d': predicted_balance_30d,
+        'low_balance_alerts': low_balance_alerts
     }
+ 
+# Example usage:
+# df = pd.read_csv("brenda_newman.csv")
+# forecast_data = predict_cash_flow_sarima(df)
+# show_cash_flow_forecast(forecast_data, df)
+
+
 
 def generate_insights(df, rfm_metrics, cash_flow_prediction):
     """

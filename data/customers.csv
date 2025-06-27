@@ -1,11 +1,12 @@
 customer_id,username,full_name,age,gender,account_type,join_date
-1,james_smith,James Smith,25,M,Premium,2024-01-15
-2,sarah_jones,Sarah Jones,32,F,Standard,2024-02-20
-3,michael_brown,Michael Brown,28,M,Business,2024-03-10
-4,emma_davis,Emma Davis,35,F,Premium,2024-01-25
-5,william_wilson,William Wilson,42,M,Standard,2024-04-05
-6,olivia_taylor,Olivia Taylor,29,F,Premium,2024-02-15
-7,alexander_anderson,Alexander Anderson,38,M,Business,2024-03-20
-8,sophia_thomas,Sophia Thomas,26,F,Standard,2024-05-10
-9,benjamin_jackson,Benjamin Jackson,31,M,Premium,2024-01-30
-10,charlotte_white,Charlotte White,33,F,Business,2024-04-12
+1,james_smith,James Smith,25,M,Premium,2023-01-15
+2,susan_callahan,Susan Callahan,22,F,Standard,2023-08-28
+3,megan_meyers,Megan Meyers,45,M,Standard,2023-03-15
+4,tonya_schneider,Tonya Schneider,70,F,Business,2023-02-28
+5,darin_duran,Darin Duran,30,M,Standard,2023-01-15
+6,frank_lawrence,Frank Lawrence,38,F,Standard,2023-04-20
+7,sean_moore,Sean Moore,40,M,Standard,2023-02-10
+8,rachel_davis,Rachel Davis,26,F,Standard,2023-05-15
+9,michael_smith,Michael Smith,50,M,Standard,2023-01-25
+10,brenda_newman,Brenda Newman,24,F,Standard,2023-06-10
+11,david_davis,David Davis,55,M,Business,2023-07-15
