@@ -5,6 +5,7 @@ from data_loader import load_customer_data, get_customer_profile
 from analytics import calculate_spending_summary, create_spending_charts, calculate_rfm_metrics, predict_cash_flow, generate_insights
 from recommendations import generate_product_recommendations, create_recommendation_summary, get_cross_selling_opportunities
 from clustering import get_customer_cluster
+from chatbot import render_chatbot_interface, show_chatbot_status
 import io
 import numpy as np
 from statsmodels.tsa.statespace.sarimax import SARIMAX
@@ -35,11 +36,12 @@ def show_customer_dashboard(customer_name):
     insights = generate_insights(customer_data, rfm_metrics, cash_flow_prediction)
     
     # Create tabs for different sections
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "📊 Overview", 
         "💳 Transaction Analysis", 
         "🔮 Cash Flow Forecast", 
-        "🎯 Recommendations", 
+        "🎯 Recommendations",
+        "🤖 Financial Assistant",
         "📁 Export Data"
     ])
     
@@ -59,6 +61,9 @@ def show_customer_dashboard(customer_name):
         show_customer_recommendations(customer_name, customer_data)
     
     with tab5:
+        show_chatbot_tab(customer_name)
+    
+    with tab6:
         show_export_options(customer_data, spending_summary)
 
 def show_customer_overview(profile, spending_summary, rfm_metrics, insights, customer_data):
@@ -132,15 +137,71 @@ def show_customer_overview(profile, spending_summary, rfm_metrics, insights, cus
 
     # Recent transactions
     st.subheader("📋 Recent Transactions")
-    
-    recent_transactions = customer_data.sort_values('date', ascending=False).head(10)
-    display_transactions = recent_transactions[['date', 'category', 'debit', 'credit', 'balance']].copy()
+
+    # --- Time period filter ---
+    min_date = customer_data['date'].min().date()
+    max_date = customer_data['date'].max().date()
+
+    # Create 3 columns for filters side by side
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        start_date, end_date = st.date_input(
+            "Select date range:",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date
+        )
+
+    with col2:
+        sort_column = st.selectbox(
+            "Sort by:",
+            options=["Date", "Debit", "Credit"],
+            index=0
+        )
+
+    with col3:
+        sort_order = st.selectbox(
+            "Sort order:",
+            options=["Descending", "Ascending"],
+            index=0
+        )
+
+    # Filter by date range
+    filtered_transactions = customer_data[
+        (customer_data['date'].dt.date >= start_date) &
+        (customer_data['date'].dt.date <= end_date)
+    ]
+
+    # Determine ascending or descending
+    ascending = True if sort_order == "Ascending" else False
+
+    # Sort by selected column
+    if sort_column == "Date":
+        filtered_transactions = filtered_transactions.sort_values('date', ascending=ascending)
+    elif sort_column == "Debit":
+        filtered_transactions = filtered_transactions.sort_values('debit', ascending=ascending)
+    elif sort_column == "Credit":
+        filtered_transactions = filtered_transactions.sort_values('credit', ascending=ascending)
+
+    # Limit to top 10 after sorting
+    filtered_transactions = filtered_transactions.head(10)
+
+    # Select and copy required columns
+    display_transactions = filtered_transactions[['date', 'category', 'debit', 'credit', 'balance']].copy()
+
+    # Format columns
     display_transactions['date'] = display_transactions['date'].dt.strftime('%Y-%m-%d %H:%M')
     display_transactions['debit'] = display_transactions['debit'].apply(lambda x: f"${x:,.2f}" if x > 0 else "-")
     display_transactions['credit'] = display_transactions['credit'].apply(lambda x: f"${x:,.2f}" if x > 0 else "-")
     display_transactions['balance'] = display_transactions['balance'].apply(lambda x: f"${x:,.2f}")
-    
-    st.dataframe(display_transactions, use_container_width=True)
+
+    # Capitalize first letter of each column name
+    display_transactions.columns = [col.capitalize() for col in display_transactions.columns]
+
+    # Show dataframe without the index column (no serial number)
+    st.dataframe(display_transactions.reset_index(drop=True), use_container_width=True)
+
 
 def show_transaction_analysis(customer_data, spending_summary):
     """
@@ -390,6 +451,28 @@ def show_customer_recommendations(customer_name, customer_data):
     st.subheader("📋 Recommendation Summary")
     summary = create_recommendation_summary(recommendations)
     st.markdown(summary)
+
+def show_chatbot_tab(customer_name):
+    """Show chatbot interface tab"""
+    st.header("🤖 Your Personal Financial Assistant")
+    
+    st.markdown("""
+    Welcome to your AI-powered financial assistant! I can help you with:
+    
+    - **📊 Spending Analysis**: Get insights into your spending patterns and trends
+    - **💡 Budgeting Advice**: Receive personalized tips to improve your financial health
+    - **🔮 Forecast Questions**: Ask about future balance predictions and cash flow
+    - **🎯 Product Recommendations**: Get advice on which banking products suit your needs
+    - **💰 Financial Planning**: General financial advice based on your transaction history
+    
+    Your data is completely private and secure - I only access your personal financial information to provide better assistance.
+    """)
+    
+    # Show AI service status
+    show_chatbot_status()
+    
+    # Render the chatbot interface
+    render_chatbot_interface(customer_name)
 
 def show_export_options(customer_data, spending_summary):
     """
