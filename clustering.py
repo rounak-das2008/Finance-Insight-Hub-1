@@ -211,7 +211,8 @@ def create_cluster_visualizations(clustering_results, cluster_analysis):
     
     visualizations = {}
     
-    # PCA scatter plot
+    # PCA scatter plot with explained variance in axis labels
+    explained_var = clustering_results['pca_model'].explained_variance_ratio_
     fig_pca = px.scatter(
         pca_df,
         x='PC1',
@@ -219,7 +220,11 @@ def create_cluster_visualizations(clustering_results, cluster_analysis):
         color='cluster',
         hover_data=['customer'],
         title="Customer Clusters (PCA Visualization)",
-        labels={'cluster': 'Cluster'}
+        labels={
+            'cluster': 'Cluster',
+            'PC1': f'PC1 ({explained_var[0]*100:.1f}% variance)',
+            'PC2': f'PC2 ({explained_var[1]*100:.1f}% variance)'
+        }
     )
     visualizations['pca_scatter'] = fig_pca
     

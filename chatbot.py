@@ -15,6 +15,7 @@ def check_gemini_api():
     """Check if Gemini API key is available"""
     return os.getenv("GEMINI_API_KEY") is not None
 
+
 # Initialize chat history in session state
 def init_chat_history():
     """Initialize chat history for the current user"""
@@ -52,7 +53,11 @@ def get_customer_context(customer_name):
             'frequency': rfm_metrics['frequency'] if rfm_metrics else 0,
             'monetary': rfm_metrics['monetary'] if rfm_metrics else 0,
             'predicted_balance_30d': cash_flow_prediction['predicted_balance_30d'] if cash_flow_prediction else 0,
+            'predicted_balance_60d': cash_flow_prediction.get('predicted_balance_60d', 0) if cash_flow_prediction else 0,
             'net_daily_flow': cash_flow_prediction['net_daily_flow'] if cash_flow_prediction else 0,
+            'forecast_confidence': cash_flow_prediction.get('confidence_score', 0) if cash_flow_prediction else 0,
+            'forecast_method': cash_flow_prediction.get('method_used', 'Unknown') if cash_flow_prediction else 'Unknown',
+            'validation_metrics': cash_flow_prediction.get('validation_metrics', {}) if cash_flow_prediction else {},
             'insights': insights if insights else [],
             'recommendations': [
                 {
@@ -93,7 +98,14 @@ SPENDING PATTERNS:
 
 FORECAST INSIGHTS:
 - Predicted Balance (30 days): ${customer_context['predicted_balance_30d']:,.2f}
+- Predicted Balance (60 days): ${customer_context['predicted_balance_60d']:,.2f}
 - Daily Net Flow: ${customer_context['net_daily_flow']:,.2f}
+- Forecast Confidence: {customer_context['forecast_confidence']:.1%}
+- Forecast Method: {customer_context['forecast_method']}
+
+VALIDATION METRICS:
+- Model Accuracy (MAPE): {customer_context['validation_metrics'].get('mape', 'N/A') if customer_context['validation_metrics'] and customer_context['validation_metrics'].get('mape') else 'N/A'}
+- Validation Points: {customer_context['validation_metrics'].get('validation_points', 'N/A') if customer_context['validation_metrics'] else 'N/A'}
 
 CURRENT INSIGHTS:
 {chr(10).join(['- ' + insight for insight in customer_context['insights']])}
@@ -207,7 +219,8 @@ def get_fallback_response(prompt, customer_context):
         return f"You've spent ${customer_context['total_spent']:,.2f} total, with your highest spending in {top_cat} (${top_amount:.2f}). Consider reviewing your spending in this category."
     
     elif any(word in prompt_lower for word in ['forecast', 'future', 'predict']):
-        return f"Based on your current patterns, your balance is predicted to be ${customer_context['predicted_balance_30d']:,.2f} in 30 days."
+        confidence_text = f" with {customer_context['forecast_confidence']:.1%} confidence" if customer_context['forecast_confidence'] > 0 else ""
+        return f"Based on your current patterns, your balance is predicted to be ${customer_context['predicted_balance_30d']:,.2f} in 30 days and ${customer_context['predicted_balance_60d']:,.2f} in 60 days{confidence_text}. The forecast uses {customer_context['forecast_method']} based on 5 months of your transaction history."
     
     elif any(word in prompt_lower for word in ['recommend', 'product', 'advice']):
         if customer_context['recommendations']:

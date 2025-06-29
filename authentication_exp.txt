@@ -1,0 +1,49 @@
+What type of authentication is it?
+✅ Type: Session-based authentication using Streamlit’s internal session state.
+
+🔐 How it works:
+Credentials are checked in authenticate_user() using hardcoded values or a function like get_available_customers().
+
+If valid, the app sets flags in st.session_state, e.g.:
+
+python
+Copy
+Edit
+st.session_state["authenticated"] = True
+st.session_state["user_role"] = get_user_role(username)
+Access control is handled using decorators:
+
+@require_auth — ensures user is logged in.
+
+@require_role("admin") — restricts access to a specific role.
+
+❌ What it's not:
+Not JWT-based — no tokens are issued or verified.
+
+Not using secure cookies — no browser-side session or cookie management.
+
+Not using OAuth, SAML, or LDAP — all credentials are managed manually.
+
+⚠️ Limitations:
+Session data is not shared across tabs or devices.
+
+Session state is stored client-side in the Streamlit session (ephemeral).
+
+Not secure for production use unless you:
+
+Encrypt credentials.
+
+Add logout/reset logic.
+
+Use HTTPS.
+
+Consider a proper authentication backend (Auth0, Firebase, etc.).
+
+✅ Summary:
+Feature	Type
+Auth Mechanism	Manual username/password check
+Session Management	st.session_state
+Token-based (JWT)	❌ No
+Secure cookies	❌ No
+OAuth/SAML/SSO	❌ No
+Suitable for Prod	⚠️ Only with enhancements
