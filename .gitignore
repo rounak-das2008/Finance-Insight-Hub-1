@@ -2,4 +2,5 @@ finance-insights/
 finance-ins-1/
 __pycache__/
 .env
+manim/
 
