@@ -9,6 +9,8 @@ from recommendations import generate_product_recommendations
 from data_loader import load_customer_data, get_customer_profile
 import requests
 import time
+from dotenv import load_dotenv
+load_dotenv()
 
 # Check if we have access to Gemini API
 def check_gemini_api():
@@ -162,7 +164,7 @@ def call_gemini_api(prompt, chat_history, customer_context):
     except Exception as e:
         return f"I'm currently experiencing technical difficulties. Please try again later. (Error: {str(e)})"
 
-def call_ollama_api(prompt, chat_history, customer_context, model="llama3.2:3b"):
+def call_ollama_api(prompt, chat_history, customer_context, model="gemma3:latest"):
     """Call local Ollama API for chat response"""
     try:
         # Prepare the conversation
